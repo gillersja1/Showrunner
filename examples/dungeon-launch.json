@@ -1,0 +1,25 @@
+{
+  "title": "Playwright Dungeon Crawl: launch trailer",
+  "baseUrl": "https://playwright-dungeon-crawl.onrender.com",
+  "warmup": { "url": "/", "waitFor": "#map-heading" },
+  "viewport": { "width": 1280, "height": 720 },
+  "pace": { "holdMs": 700 },
+  "steps": [
+    { "goto": "/", "say": "A game you can only beat by writing Playwright tests." },
+    { "scrollTo": "#map-heading", "say": "Eight floors, each built around one Playwright skill." },
+    { "click": "role=group[name='Test language'] >> text=TypeScript", "say": "Play in C# or TypeScript." },
+    { "goto": "/floors/portals", "say": "Every floor starts with a short lesson..." },
+    { "scrollTo": "text=Catch a tab as it opens", "hold": 1200 },
+    { "goto": "/rooms/welcome-matt", "say": "...then a trap room that only opens for a Playwright test." },
+    { "click": "role=button[name='Knock']", "say": "Let a Playwright test do it, and the room gives up its treasure flag." },
+    { "wait": 1200 },
+    { "goto": "/", "say": "Treasure earns XP. Spend it in the loot shop..." },
+    { "click": "text=Loot shop" },
+    { "click": "role=button[name='Buy Ghostfire torch for 50 XP']", "say": "...on titles and torches that light up the dungeon." },
+    { "wait": 1500 },
+    { "goto": "/leaderboard", "say": "Climb the leaderboard. The NPCs are waiting." },
+    { "goto": "/certificates/PDC-20261030-6ZFYHB3C", "say": "Clear the floors and earn a certificate anyone can verify." },
+    { "scrollTo": "text=Certificate ID", "hold": 1500 },
+    { "goto": "/", "say": "Free to play: playwright-dungeon-crawl.onrender.com", "hold": 2500 }
+  ]
+}
