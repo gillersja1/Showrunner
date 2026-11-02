@@ -1,5 +1,7 @@
 # Showrunner
 
+[![CI](https://github.com/gillersja1/Showrunner/actions/workflows/ci.yml/badge.svg)](https://github.com/gillersja1/Showrunner/actions/workflows/ci.yml)
+
 Write a demo as a script and get a polished video. Showrunner plays a list of
 [Playwright](https://playwright.dev) steps in a real browser and records them as an MP4, with:
 
