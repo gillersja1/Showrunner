@@ -1,0 +1,17 @@
+{
+  "title": "Playwright Dungeon Crawl: a quick tour",
+  "baseUrl": "https://playwright-dungeon-crawl.onrender.com",
+  "warmup": { "url": "/", "waitFor": "#map-heading" },
+  "viewport": { "width": 1280, "height": 720 },
+  "steps": [
+    { "goto": "/", "say": "Playwright Dungeon Crawl: learn Playwright by clearing a dungeon, one floor at a time." },
+    { "scrollTo": "#map-heading", "say": "Every floor has a scroll to read, a riddle, and a trap room only a test can beat." },
+    { "click": "role=link[name='Scroll'] >> nth=0", "say": "Floor 1's scroll gets you set up, step by step." },
+    { "scrollTo": "role=button[name='Poke']", "say": "Then you warm up on the training dummy." },
+    { "click": "role=button[name='Poke']", "say": "Poke it yourself first. Your first test will do the same." },
+    { "waitFor": "[data-testid=dummy-voice]:not(:empty)", "hold": 1500 },
+    { "goto": "/rooms/welcome-matt", "say": "Then it's on to the Welcome Matt, a trap room built for Playwright, not your mouse." },
+    { "click": "role=button[name='Knock']", "say": "Knock with Playwright and the door gives up its treasure flag." },
+    { "wait": 1500, "say": "Clear all seven floors to earn a Certificate of Survival anyone can verify." }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "name": "showrunner-pw",
+  "version": "0.1.0",
+  "description": "Turn a scripted Playwright flow with narration into a polished demo video.",
+  "type": "module",
+  "bin": {
+    "showrunner": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "showrunner": "tsx src/cli.ts",
+    "demo": "tsx src/cli.ts record examples/dungeon-tour.json"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "playwright",
+    "demo",
+    "video",
+    "screencast",
+    "walkthrough"
+  ],
+  "license": "MIT",
+  "repository": "github:gillersja1/Showrunner",
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "playwright": "^1.64.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "ffmpeg-static@5.3.0": true
+  }
+}
