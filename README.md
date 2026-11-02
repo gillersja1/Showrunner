@@ -8,9 +8,18 @@ Write a demo as a script and get a polished video. Showrunner plays a list of
 - **A visible cursor** that glides to each element before it's clicked. Playwright doesn't draw one, so its recordings look like things happen by magic.
 - **Captions** from the `say` line on each step, held on screen long enough to read and carried across page loads.
 - **Click ripples**, and smooth scrolling to anything off-screen.
-- **A timeline** (`.timeline.json`) of every caption and click with its time and position, for editing and auto-zoom later.
+- **Auto-zoom** that eases in on each click, pans between nearby targets and eases back out, with captions kept full-size on top.
+- **A timeline** (`.timeline.json`) of every caption and click with its time and position.
 
 Because a demo is just a script, re-recording after a UI change takes one command, not another take.
+
+## See it in action
+
+![A Showrunner recording: a Playwright test knocks on a trap room door in Playwright Dungeon Crawl and wins its treasure flag, then buys a torch in the loot shop that fills the site with blue embers. Captions explain each step and the camera zooms in on every click.](docs/demo.gif)
+
+An excerpt from the launch trailer for [Playwright Dungeon Crawl](https://playwright-dungeon-crawl.onrender.com):
+[watch the full 45 seconds](docs/dungeon-trailer.mp4). It's recorded from
+[`examples/dungeon-launch.json`](examples/dungeon-launch.json), sixteen steps of plain JSON, against the live site.
 
 ## Quick start
 
@@ -60,12 +69,13 @@ Flow-level settings:
 | `pace.holdMs` | `800` | Pause after each step. Steps with captions also wait long enough for them to be read. |
 | `pace.cursorMs` | `700` | Longest cursor glide. |
 | `pace.typeDelay` | `70` | Delay between typed keys. |
+| `zoom` | `{ "scale": 1.5 }` | Auto-zoom on clicks and typing. `false` turns it off; `scale`, `leadMs`, `holdMs` and `releaseMs` tune it. |
 | `warmup` | none | `{ "url": "/", "waitFor": "<selector>" }`: load the app in an unrecorded browser first. Use this for hosts that sleep, like free Render apps, so the video doesn't open on a loading screen. |
 
 ## Commands
 
 ```text
-showrunner record <flow.json> [--out <dir>] [--name <name>] [--headed] [--keep-raw] [--timeout <ms>]
+showrunner record <flow.json> [--out <dir>] [--name <name>] [--headed] [--keep-raw] [--timeout <ms>] [--no-zoom]
 showrunner check <flow.json>
 ```
 
@@ -74,7 +84,6 @@ Showrunner names the step and keeps the partial recording as `<name>.failed.webm
 
 ## Roadmap
 
-- Auto-zoom on clicks, driven by the timeline
 - Voiceover from the `say` lines
 - A browser editor for trimming and caption tweaks
 - Higher-quality capture than Playwright's built-in recorder
