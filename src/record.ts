@@ -2,8 +2,9 @@ import { mkdir, rename, rm, writeFile, copyFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium, type Browser, type Locator, type Page } from 'playwright';
 import { actionOf, readingMs, type Flow, type Pace, type Step } from './flow.js';
-import { OVERLAY_SCRIPT } from './overlay.js';
-import { toMp4 } from './encode.js';
+import { CAPTION_CSS, HIDE_CAPTIONS_SCRIPT, OVERLAY_SCRIPT } from './overlay.js';
+import { toMp4, type ImageOverlay } from './encode.js';
+import { zoomFilter, type Focus } from './zoom.js';
 
 interface OverlayApi {
   ready: boolean;
@@ -34,12 +35,14 @@ export interface TimelineEvent {
   /** Milliseconds from the start of the finished video. */
   t: number;
   step: number;
-  kind: 'step' | 'click' | 'type' | 'hover' | 'press' | 'navigate';
+  kind: 'step' | 'click' | 'type' | 'hover' | 'press' | 'navigate' | 'end';
   say?: string;
   x?: number;
   y?: number;
   width?: number;
   height?: number;
+  /** How long the action took after t, e.g. typing, ms. */
+  busyMs?: number;
 }
 
 export interface RecordResult {
@@ -80,6 +83,8 @@ export async function record(flow: Flow, opts: RecordOptions): Promise<RecordRes
   context.setDefaultTimeout(opts.timeoutMs ?? 30_000);
   // Free hosts can take a while to wake up.
   context.setDefaultNavigationTimeout(90_000);
+  // With zoom on, captions are burned in after the zoom so they stay full-size and in frame.
+  if (flow.zoom) await context.addInitScript(HIDE_CAPTIONS_SCRIPT);
   await context.addInitScript(OVERLAY_SCRIPT);
 
   const page = await context.newPage();
@@ -98,7 +103,10 @@ export async function record(flow: Flow, opts: RecordOptions): Promise<RecordRes
         events.push({ t: shownAt - t0, step: i, kind: 'step', say: step.say });
 
         const target = await stage.perform(step);
-        if (target) events.push({ t: target.at - t0, step: i, kind: target.kind, ...target.box });
+        if (target) {
+          const busyMs = target.kind === 'type' ? Date.now() - target.at : undefined;
+          events.push({ t: target.at - t0, step: i, kind: target.kind, ...target.box, busyMs });
+        }
 
         const hold = Math.max(step.hold ?? flow.pace.holdMs, readingMs(step.say) - (Date.now() - shownAt));
         await sleep(hold);
@@ -107,12 +115,12 @@ export async function record(flow: Flow, opts: RecordOptions): Promise<RecordRes
       }
     }
     await stage.caption('');
+    events.push({ t: Date.now() - t0, step: flow.steps.length, kind: 'end' });
     await sleep(500);
   } catch (e) {
     failure = e instanceof StepFailed ? e : new StepFailed(-1, {}, e);
   } finally {
     await context.close();
-    await browser.close();
   }
 
   const video = page.video();
@@ -133,9 +141,11 @@ export async function record(flow: Flow, opts: RecordOptions): Promise<RecordRes
       await moveFile(rawVideo, raw);
       throw failure;
     }
-    log('  encoding MP4...');
-    const durationMs = await toMp4(rawVideo, mp4, trimMs);
     const shifted = events.map(e => ({ ...e, t: Math.max(0, e.t - trimMs) }));
+    const filter = flow.zoom ? zoomFilter(focusesOf(shifted), flow.viewport, 25, flow.zoom) : undefined;
+    const overlays = flow.zoom ? await renderCaptions(browser, flow.viewport, captionsOf(shifted), rawDir) : [];
+    log(filter ? '  encoding MP4 with auto-zoom...' : '  encoding MP4...');
+    const durationMs = await toMp4(rawVideo, mp4, { startMs: trimMs, filter, overlays });
     await writeFile(timeline, JSON.stringify({ title: flow.title, viewport: flow.viewport, durationMs, events: shifted }, null, 2));
     if (opts.keepRaw) {
       raw = `${base}.raw.webm`;
@@ -143,7 +153,46 @@ export async function record(flow: Flow, opts: RecordOptions): Promise<RecordRes
     }
     return { mp4, raw, timeline, durationMs };
   } finally {
+    await browser.close();
     await rm(rawDir, { recursive: true, force: true });
+  }
+}
+
+export interface Caption {
+  text: string;
+  startMs: number;
+  endMs: number;
+}
+
+/** Each caption runs from its step until the next step starts. */
+export function captionsOf(events: TimelineEvent[]): Caption[] {
+  const marks = events.filter(e => e.kind === 'step' || e.kind === 'end');
+  return marks.flatMap((e, i) => {
+    const next = marks[i + 1];
+    return e.say && next ? [{ text: e.say, startMs: e.t, endMs: next.t }] : [];
+  });
+}
+
+/** Draws each caption onto a transparent, frame-sized PNG with the same styling as the live overlay. */
+async function renderCaptions(browser: Browser, viewport: { width: number; height: number }, captions: Caption[], dir: string): Promise<ImageOverlay[]> {
+  if (captions.length === 0) return [];
+  const context = await browser.newContext({ viewport });
+  try {
+    const page = await context.newPage();
+    await page.setContent(
+      `<style>html,body{margin:0;background:transparent}${CAPTION_CSS}.caption{position:fixed;transition:none}</style>` +
+      '<div class="caption on"></div>',
+    );
+    const overlays: ImageOverlay[] = [];
+    for (const [i, c] of captions.entries()) {
+      await page.locator('.caption').evaluate((el, text) => { el.textContent = text; }, c.text);
+      const png = path.join(dir, `caption-${i}.png`);
+      await page.screenshot({ path: png, omitBackground: true });
+      overlays.push({ png, startMs: c.startMs, endMs: c.endMs });
+    }
+    return overlays;
+  } finally {
+    await context.close();
   }
 }
 
@@ -164,6 +213,13 @@ async function warmUp(browser: Browser, flow: Flow) {
   } finally {
     await context.close().catch(() => {});
   }
+}
+
+/** The moments worth zooming in on: anything the cursor went to. */
+export function focusesOf(events: TimelineEvent[]): Focus[] {
+  return events
+    .filter(e => (e.kind === 'click' || e.kind === 'type' || e.kind === 'hover') && e.x !== undefined)
+    .map(e => ({ t: e.t, x: e.x! + (e.width ?? 0) / 2, y: e.y! + (e.height ?? 0) / 2, busyMs: e.busyMs }));
 }
 
 function describe(step: Step): string {
