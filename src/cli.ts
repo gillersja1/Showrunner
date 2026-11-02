@@ -8,7 +8,7 @@ import { record } from './record.js';
 const USAGE = `showrunner: turn a scripted Playwright flow into a demo video
 
 Usage:
-  showrunner record <flow.json> [--out <dir>] [--name <name>] [--headed] [--keep-raw] [--timeout <ms>]
+  showrunner record <flow.json> [--out <dir>] [--name <name>] [--headed] [--keep-raw] [--timeout <ms>] [--no-zoom]
   showrunner check <flow.json>
 
 Commands:
@@ -21,6 +21,7 @@ Options:
   --headed       Show the browser while recording
   --keep-raw     Also keep Playwright's untrimmed WebM recording
   --timeout <ms> How long a step may wait for its element (default: 30000)
+  --no-zoom      Skip auto-zoom, even if the flow asks for it
   -h, --help     Show this help
 `;
 
@@ -45,6 +46,7 @@ async function main(argv: string[]): Promise<number> {
       headed: { type: 'boolean', default: false },
       'keep-raw': { type: 'boolean', default: false },
       timeout: { type: 'string' },
+      'no-zoom': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
   });
@@ -64,6 +66,7 @@ async function main(argv: string[]): Promise<number> {
   }
 
   const flow = await loadFlow(file);
+  if (values['no-zoom']) flow.zoom = false;
   if (command === 'check') {
     console.log(`${file}: "${flow.title}", ${flow.steps.length} steps. Looks good.`);
     return 0;

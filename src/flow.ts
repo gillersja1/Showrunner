@@ -1,5 +1,7 @@
 // The flow file: a list of Playwright steps, each with an optional line of narration.
 
+import { DEFAULT_ZOOM, type ZoomOptions } from './zoom.js';
+
 export const ACTIONS = ['goto', 'click', 'type', 'press', 'hover', 'scrollTo', 'waitFor', 'wait'] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -52,6 +54,8 @@ export interface Flow {
   warmup?: Warmup;
   viewport: { width: number; height: number };
   pace: Pace;
+  /** Auto-zoom on clicks and typing, or false for none. */
+  zoom: ZoomOptions | false;
   steps: Step[];
 }
 
@@ -132,6 +136,20 @@ export function parseFlow(raw: unknown): Flow {
     }
   }
 
+  let zoom: ZoomOptions | false = DEFAULT_ZOOM;
+  if (raw.zoom === false) zoom = false;
+  else if (raw.zoom !== undefined && raw.zoom !== true) {
+    if (!isObject(raw.zoom)) issues.push('"zoom" must be false, true, or an object of settings.');
+    else {
+      for (const [k, v] of Object.entries(raw.zoom)) {
+        if (!(k in DEFAULT_ZOOM)) issues.push(`"zoom.${k}" is not a known setting (use ${Object.keys(DEFAULT_ZOOM).join(', ')}).`);
+        else if (!isNonNegative(v)) issues.push(`"zoom.${k}" must be a non-negative number.`);
+        else if (k === 'scale' && ((v as number) < 1 || (v as number) > 4)) issues.push('"zoom.scale" must be between 1 and 4.');
+      }
+      zoom = { ...DEFAULT_ZOOM, ...(raw.zoom as Partial<ZoomOptions>) };
+    }
+  }
+
   const steps = raw.steps;
   if (!Array.isArray(steps) || steps.length === 0) {
     issues.push('"steps" must be a non-empty array.');
@@ -140,11 +158,11 @@ export function parseFlow(raw: unknown): Flow {
   }
 
   for (const k of Object.keys(raw)) {
-    if (!['title', 'baseUrl', 'warmup', 'viewport', 'pace', 'steps', '$schema'].includes(k)) issues.push(`"${k}" is not a known flow setting.`);
+    if (!['title', 'baseUrl', 'warmup', 'viewport', 'pace', 'zoom', 'steps', '$schema'].includes(k)) issues.push(`"${k}" is not a known flow setting.`);
   }
 
   if (issues.length) throw new FlowError(issues);
-  return { title: title as string, baseUrl: baseUrl as string | undefined, warmup, viewport, pace, steps: steps as Step[] };
+  return { title: title as string, baseUrl: baseUrl as string | undefined, warmup, viewport, pace, zoom, steps: steps as Step[] };
 }
 
 function checkStep(s: unknown, where: string, hasBaseUrl: boolean, issues: string[]) {
